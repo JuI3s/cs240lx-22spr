@@ -1,6 +1,6 @@
-LLVM_BIN=
+LLVM_BIN= /opt/homebrew/Cellar/llvm@14/14.0.6/bin
 RTLIB=rtlib
-# TEST_SRC=test-use-after-free
+TEST_SRC=test-use-after-free
 TEST_SRC=test-no-error
 # TEST_SRC=test-unsafe-store
 # TEST_SRC=test-unsafe-load
@@ -27,6 +27,6 @@ $(BUILD_DIR)/$(RTLIB).o: $(RTLIB).c
 .PHONY: clean
 
 clean: 
-	rm $(BUILD_DIR)/*
+	rm $(BU'ILD_DIR)/*
 
 

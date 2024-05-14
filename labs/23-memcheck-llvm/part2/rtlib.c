@@ -3,44 +3,60 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-mem_log_t* head;
+mem_log_t *head;
 
 #define rtlib_output(args...) \
-  do {                        \
+  do                          \
+  {                           \
     printf("RTLIB: ");        \
     printf(args);             \
   } while (0)
 
-static bool log_contains_addr(mem_log_t* log, u_int8_t* addr) {
+static bool log_contains_addr(mem_log_t *log, u_int8_t *addr)
+{
   return log->addr <= addr &&
          ((u_int64_t)log->addr + log->size) > (u_int64_t)addr;
 }
 
-void log_malloc(u_int8_t* p, size_t bytes) {
-  mem_log_t* cur = head;
+void print_hello()
+{
+  rtlib_output("Hello from instrumented function!\n");
+}
+
+void log_malloc(u_int8_t *p, size_t bytes)
+{
+  mem_log_t *cur = head;
   // Malloc may be reusing a previously allocated block
   // that has been freed.
-  while (cur != NULL) {
-    if (log_contains_addr(cur, p)) {
+  while (cur != NULL)
+  {
+    if (log_contains_addr(cur, p))
+    {
       cur->state = ALLOC;
       return;
     }
     cur = cur->next;
   }
 
-  cur = (mem_log_t*)malloc(sizeof(mem_log_t));
+  cur = (mem_log_t *)malloc(sizeof(mem_log_t));
   cur->addr = p;
   cur->size = bytes;
   cur->next = NULL;
   cur->state = ALLOC;
+  rtlib_output("Inserting at addr: %p!\n", p);
   insert_log(&head, cur);
+  print_log();
 }
 
-void log_free(u_int8_t* p) {
-  mem_log_t* cur = head;
-  while (cur != NULL) {
-    if (log_contains_addr(cur, p)) {
-      if (cur->state == FREE) {
+void log_free(u_int8_t *p)
+{
+  mem_log_t *cur = head;
+  while (cur != NULL)
+  {
+    if (log_contains_addr(cur, p))
+    {
+      if (cur->state == FREE)
+      {
         rtlib_output("Double free at address %p.\n", p);
         exit(0);
       }
@@ -53,13 +69,22 @@ void log_free(u_int8_t* p) {
   exit(0);
 }
 
-void log_load(u_int8_t* p) {
-  mem_log_t* cur = head;
-  while (cur != NULL) {
-    if (log_contains_addr(cur, p)) {
+void log_load(u_int8_t *p)
+{
+  print_log();
+  mem_log_t *cur = head;
+  while (cur != NULL)
+  {
+    if (log_contains_addr(cur, p))
+    {
       if (cur->state == ALLOC || cur->state == STACK)
+      {
+        // rtlib_output("Load is fine %p.\n", p);
+
         return;
-      else if (cur->state == FREE) {
+      }
+      else if (cur->state == FREE)
+      {
         rtlib_output("Use (load) after free at address %p.\n", p);
         exit(0);
       }
@@ -67,16 +92,21 @@ void log_load(u_int8_t* p) {
     cur = cur->next;
   }
   rtlib_output("Loaded from unallocated memory at address %p.\n", p);
-  exit(0);
+  // exit(0);
 }
 
-void log_store(u_int8_t* p) {
-  mem_log_t* cur = head;
-  while (cur != NULL) {
-    if (log_contains_addr(cur, p)) {
+void log_store(u_int8_t *p)
+{
+  print_log();
+  mem_log_t *cur = head;
+  while (cur != NULL)
+  {
+    if (log_contains_addr(cur, p))
+    {
       if (cur->state == ALLOC || cur->state == STACK)
         return;
-      else if (cur->state == FREE) {
+      else if (cur->state == FREE)
+      {
         rtlib_output("Use (store) after free at address %p.\n", p);
         exit(0);
       }
@@ -84,11 +114,14 @@ void log_store(u_int8_t* p) {
     cur = cur->next;
   }
   rtlib_output("Stored at unallocated memory at address %p.\n", p);
-  exit(0);
+  // exit(0);
 }
 
-void log_stack(u_int8_t* p) {
-  mem_log_t* cur = (mem_log_t*)malloc(sizeof(mem_log_t));
+void log_stack(u_int8_t *p)
+{
+  rtlib_output("Log stack at %p.\n", p);
+
+  mem_log_t *cur = (mem_log_t *)malloc(sizeof(mem_log_t));
   cur->addr = p;
   cur->size = 1;
   cur->next = NULL;
@@ -96,15 +129,21 @@ void log_stack(u_int8_t* p) {
   insert_log(&head, cur);
 }
 
-void init_check() {
+void init_check()
+{
+  rtlib_output("****Init function****\n");
+
   head = NULL;
 }
 
-void exit_check() {
-  mem_log_t* cur = head;
-  mem_log_t* prev = NULL;
-  while (cur != NULL) {
-    if (cur->state == ALLOC) {
+void exit_check()
+{
+  mem_log_t *cur = head;
+  mem_log_t *prev = NULL;
+  while (cur != NULL)
+  {
+    if (cur->state == ALLOC)
+    {
       rtlib_output("Memory leak at address %p.\n", cur->addr);
       exit(0);
     }
@@ -114,14 +153,16 @@ void exit_check() {
   }
 }
 
-void insert_log(mem_log_t** l, mem_log_t* log) {
-  mem_log_t* prev = *l;
-  if (prev == NULL) {
+void insert_log(mem_log_t **l, mem_log_t *log)
+{
+  mem_log_t *prev = *l;
+  if (prev == NULL)
+  {
     *l = log;
     log->next = NULL;
     return;
   }
-  mem_log_t* next;
+  mem_log_t *next;
   while ((next = prev->next))
     prev = next;
 
@@ -129,11 +170,13 @@ void insert_log(mem_log_t** l, mem_log_t* log) {
   log->next = NULL;
 }
 
-void print_log() {
-  mem_log_t* prev = head;
+void print_log()
+{
+  mem_log_t *prev = head;
   int i = 0;
   rtlib_output("****Printing Log****\n");
-  while (prev != NULL) {
+  while (prev != NULL)
+  {
     i++;
     rtlib_output("Entry #%d:\n", i);
     rtlib_output("  log->addresss =%p\n", prev->addr);

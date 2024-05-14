@@ -3,9 +3,9 @@
 #include <string.h>
 #include <assert.h>
 
-#define append_field(OBJ, FIELD) (*({ \
+#define append_field(OBJ, FIELD) (*({                                                   \
     (OBJ).FIELD = realloc((OBJ).FIELD, (++((OBJ).n_##FIELD)) * sizeof((OBJ).FIELD[0])); \
-    (OBJ).FIELD + ((OBJ).n_##FIELD - 1); \
+    (OBJ).FIELD + ((OBJ).n_##FIELD - 1);                                                \
 }))
 
 /****** GLOBAL DATA STRUCTURES ******/
@@ -14,7 +14,13 @@
 // solvers can be logged by calling xprintf. It will only log if the LOG_XCHECK
 // flag is set by main(), i.e., if the user passes an argument.
 int LOG_XCHECK = 0;
-#define xprintf(...) { if (LOG_XCHECK) { fprintf(stderr, __VA_ARGS__); } }
+#define xprintf(...)                      \
+    {                                     \
+        if (LOG_XCHECK)                   \
+        {                                 \
+            fprintf(stderr, __VA_ARGS__); \
+        }                                 \
+    }
 
 // The number of variables and clauses. This is specified by the "p cnf ..."
 // line of the input.
@@ -23,17 +29,19 @@ unsigned N_VARS = 0, N_CLAUSES = 0;
 // Each clause is a list of literals, along with a count of the number of
 // literals set to zero in the current partial assignment. The clause is
 // implied once n_zeros == (n_lits - 1) and falsified if n_zeros == n_lits.
-struct clause {
+struct clause
+{
     int *literals, n_literals;
     int n_zeros;
 };
 struct clause *CLAUSES = NULL;
 
 // The current partial assignment is a simple map from var_id -> assignment.
-enum assignment {
-    UNASSIGNED  = -1,
-    FALSE       = 0,
-    TRUE        = 1,
+enum assignment
+{
+    UNASSIGNED = -1,
+    FALSE = 0,
+    TRUE = 1,
 };
 enum assignment *ASSIGNMENT = NULL;
 
@@ -41,12 +49,14 @@ enum assignment *ASSIGNMENT = NULL;
 // why. In the Chaff paper a distinction is made between "decisions" and
 // "assignments", the latter being assignments as a result of BCP. For us, the
 // only difference will be the decision_type.
-enum decision_type {
-    IMPLIED         = 0,
-    TRIED_ONE_WAY   = 1,
+enum decision_type
+{
+    IMPLIED = 0,
+    TRIED_ONE_WAY = 1,
     TRIED_BOTH_WAYS = 2,
 };
-struct decision {
+struct decision
+{
     unsigned var;
     enum decision_type type;
 };
@@ -56,7 +66,8 @@ unsigned N_DECISION_STACK = 0;
 // We maintain a list of literal -> clauses having that literal. For the basic
 // implementation, these lists don't need to be changed after initialization so
 // we'll just use a simple heap array.
-struct clause_list {
+struct clause_list
+{
     struct clause **clauses;
     int n_clauses;
 };
@@ -66,25 +77,29 @@ struct clause_list *LIT_TO_CLAUSES = NULL;
 
 // LIT_TO_CLAUSES maps literals -> ids. This converts a literal to an index
 // into that map. Basically, the ordering goes -1, 1, -2, 2, ...
-int literal_to_id(int literal) {
+int literal_to_id(int literal)
+{
     return (2 * abs(literal)) + (literal > 0);
 }
 
 // Uses literal_to_id to index into LIT_TO_CLAUSES
-struct clause_list *clauses_touching(int literal) {
+struct clause_list *clauses_touching(int literal)
+{
     return LIT_TO_CLAUSES + literal_to_id(literal);
 }
 
 // Absolute value, used for turning a literal into a variable id.
 int abs(int x) { return (x < 0) ? -x : x; }
 
-int is_literal_true(int lit) {
+int is_literal_true(int lit)
+{
     int var = abs(lit);
     return ASSIGNMENT[var] != UNASSIGNED && ASSIGNMENT[var] == (lit > 0);
 }
 
 // Called when a solution is found
-int satisfiable() {
+int satisfiable()
+{
     printf("SAT\n");
     for (int i = 1; i < N_VARS; i++)
         printf("%d ", is_literal_true(i) ? i : -i);
@@ -93,40 +108,75 @@ int satisfiable() {
 }
 
 // Called when it is proved that no solution exists
-int unsatisfiable() { printf("UNSAT\n"); return 0; }
+int unsatisfiable()
+{
+    printf("UNSAT\n");
+    return 0;
+}
 
 /****** KEY OPERATIONS ******/
 
 // Attempt to assign the given literal. Then update all the n_zeros counters.
 // If this assignment causes a conflict (i.e., for some clause n_zeros ==
 // n_literals), this method will return 0. Otherwise it will return 1.
-int set_literal(int literal, enum decision_type type) {
+int set_literal(int literal, enum decision_type type)
+{
     int var = abs(literal);
-    assert(ASSIGNMENT[var] == UNASSIGNED);
+
+    if (ASSIGNMENT[var] != UNASSIGNED)
+    {
+        xprintf("literal %d is not UNASSIGNED, state: %d\n", literal, ASSIGNMENT[var]);
+        assert(0);
+    }
+
     // Update the main assignment vector
     ASSIGNMENT[var] = literal > 0;
+
+    xprintf("Setting var %d\n", var);
+    assert(ASSIGNMENT[var] != UNASSIGNED);
+
     // And add a new node on the decision stack.
-    DECISION_STACK[N_DECISION_STACK].var = var;
+    DECISION_STACK[N_DECISION_STACK]
+        .var = var;
     DECISION_STACK[N_DECISION_STACK++].type = type;
 
     // Update clause counters, check if any is completely false
-    assert(!"Implement me!");
+    // assert(!"Implement me!")
+    struct clause_list *l = clauses_touching(-literal);
+    for (int i = 0; i < l->n_clauses; i++)
+    {
+        l->clauses[i]->n_zeros++;
+        if (l->clauses[i]->n_zeros == l->clauses[i]->n_literals)
+        {
+            return 0;
+        }
+    }
+
+    return 1;
 }
 
 // Undo the latest assignment on the decision stack. Then update all the
 // n_zeros counters. Note that undoing an assignment can never cause a new
 // conflict, so we don't need to report anything.
-void unset_latest_assignment() {
+void unset_latest_assignment()
+{
     // Pop a node off the decision stack
     unsigned var = DECISION_STACK[--N_DECISION_STACK].var;
     int literal = ASSIGNMENT[var] ? var : -var;
+
+    xprintf("Unset literal %d\n", literal);
 
     // Update the partial assignment
     ASSIGNMENT[var] = UNASSIGNED;
 
     // Iterate over the clauses containing -literal and decrement their
     // n_zeros since this literal is no longer set.
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+    struct clause_list *l = clauses_touching(-literal);
+    for (int i = 0; i < l->n_clauses; i++)
+    {
+        l->clauses[i]->n_zeros--;
+    }
 }
 
 /****** DP METHODS ******/
@@ -136,14 +186,31 @@ void unset_latest_assignment() {
 // referred to as a decision. As each new decision is made, a record of that
 // decision is pushed onto the decision stack.  This function will return false
 // if no unassigned variables remain and true otherwise."
-int decide() {
+int decide()
+{
     // Iterate over variables until we find an unassigned one, placing it in v
     // (or return 0 if none is found).
+    xprintf("Decide\n");
     int v;
-    assert(!"Implement me!");
+    int idx = 1;
 
+    // assert(!"Implement me!");
+    while (1)
+    {
+        if (idx > N_VARS)
+            return 0;
+        if (ASSIGNMENT[idx] == UNASSIGNED)
+        {
+            v = idx;
+            break;
+        }
+        idx++;
+    }
+
+    xprintf("Setting literal %d to TRIED_ONE_WAY\n", -v);
     // Otherwise, try setting it false. Note this should never cause a
     // conflict, otherwise it should have been BCP'd.
+    assert(ASSIGNMENT[v] == UNASSIGNED);
     assert(set_literal(-v, TRIED_ONE_WAY));
 
     // Log this decision for xcheck.
@@ -157,12 +224,16 @@ int decide() {
 // then that unassigned literal must take on a value of 1 to make f sat.  ...
 // In the pseudo-code from above, bcp() carries out BCP transitively until
 // either there are no more implications (in which case it returns true) or a
-// conflict is produced (in which case it returns false)."
-int bcp() {
+// conflict is produce21d (in which case it returns false)."
+int bcp()
+{
+    xprintf("BCP\n");
     int any_change = 0;
-    for (size_t i = 0; i < N_CLAUSES; i++) {
+    for (size_t i = 0; i < N_CLAUSES; i++)
+    {
         struct clause *clause = CLAUSES + i;
-        if ((clause->n_zeros + 1) != clause->n_literals) continue;
+        if ((clause->n_zeros + 1) != clause->n_literals)
+            continue;
 
         // At this point, the clause is either satisfied or implied.  For each
         // literal in the clause:
@@ -171,7 +242,29 @@ int bcp() {
         // - Otherwise, if we find a literal that is unset, try to set it. If
         //   setting it causes a conflict, return 0. Otherwise, record that
         //   there was a change and go on to the next clause.
-        assert(!"Implement me!");
+        // assert(!"Implement me!");
+        for (size_t j = 0; j < clause->n_literals; j++)
+        {
+            int literal = clause->literals[j];
+            int val = abs(literal);
+            if (ASSIGNMENT[val] == TRUE)
+            {
+                break;
+            }
+            if (ASSIGNMENT[val] == UNASSIGNED)
+            {
+                xprintf("BCP set val %d\n", val);
+
+                if (!set_literal(literal, IMPLIED))
+                {
+                    return 0;
+                }
+                else
+                {
+                    any_change = 1;
+                }
+            }
+        }
     }
 
     return any_change ? bcp() : 1;
@@ -184,28 +277,49 @@ int bcp() {
 // decision that has not been tried both ways, and proceed from there in the
 // manner described above. ... If no decision can be found which has not been
 // tried both ways, that indicates that f is not satisfiable."
-int resolveConflict() {
+int resolveConflict()
+{
     // Unwind the decision stack by calling unset_latest_assignment() until we
     // find a decision that is only TRIED_ONE_WAY.
     // If you have unwinded the entire decision stack, return 0 (the formula is
     // unsat!)
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+    while (N_DECISION_STACK > 0)
+    {
+        if (DECISION_STACK[N_DECISION_STACK - 1].type != TRIED_ONE_WAY)
+        {
+            unset_latest_assignment();
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    if (N_DECISION_STACK == 0)
+        return 0;
 
     // Otherwise, take that decision and flip it:
     unsigned var = DECISION_STACK[N_DECISION_STACK - 1].var;
 
     int new_value = !ASSIGNMENT[var];
     unset_latest_assignment();
-    set_literal(new_value ? var : -var, TRIED_BOTH_WAYS);
+    // xprintf("Setting literal %d in resolveConflict\n", new_value ? var : -var);
+    return set_literal(new_value ? var : -var, TRIED_BOTH_WAYS);
 
-    return 1;
+    // return 1;
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char **argv)
+{
     LOG_XCHECK = argc > 1;
+    // LOG_XCHECK = argc > 1;
+    // LOG_XCHECK = 0;
+
     // Read comment lines at the start.
     for (char c; (c = getc(stdin)) == 'c';)
-        while (getc(stdin) != '\n');
+        while (getc(stdin) != '\n')
+            ;
 
     assert(scanf(" cnf %u %u\n", &N_VARS, &N_CLAUSES) == 2);
     N_VARS++;
@@ -219,27 +333,34 @@ int main(int argc, char **argv) {
 
     LIT_TO_CLAUSES = calloc(N_VARS * 2, sizeof(LIT_TO_CLAUSES[0]));
 
-    for (size_t i = 0; i < N_CLAUSES; i++) {
+    for (size_t i = 0; i < N_CLAUSES; i++)
+    {
         int literal = 0;
-        for (assert(scanf("%d ", &literal)); literal; assert(scanf("%d ", &literal))) {
+        for (assert(scanf("%d ", &literal)); literal; assert(scanf("%d ", &literal)))
+        {
             // Dedup any repeated literals in the clause.
             int repeat = 0;
             for (size_t j = 0; j < CLAUSES[i].n_literals && !repeat; j++)
                 repeat = (CLAUSES[i].literals[j] == literal);
-            if (repeat) continue;
+            if (repeat)
+                continue;
 
             // Append to the clause's literal list.
             append_field(CLAUSES[i], literals) = literal;
 
             // Append to the list of clauses touching this literal. Hint: use
             // clauses_touching and append!
-            assert(!"Implement me");
+            // assert(!"Implement me");
+            struct clause_list *l = clauses_touching(literal);
+            append_field(*l, clauses) = CLAUSES + i;
         }
     }
 
     // Basic DP from the Chaff paper:
-    if (!bcp()) return unsatisfiable(); // needed to handle unit clauses
-    while (1) {
+    if (!bcp())
+        return unsatisfiable(); // needed to handle unit clauses
+    while (1)
+    {
         if (!decide())
             return satisfiable();
 

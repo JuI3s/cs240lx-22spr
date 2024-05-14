@@ -1,4 +1,4 @@
-LLVM_BIN= /home/engler/class/cs240lx-22spr/labs/23-memcheck-llvm/downloads/clang+llvm-15.0.2-x86_64-unknown-linux-gnu/bin
+LLVM_BIN= /opt/homebrew/Cellar/llvm@14/14.0.6/bin
 RTLIB = rtlib
 TEST_SRC = test
 BUILD_DIR=./objs
