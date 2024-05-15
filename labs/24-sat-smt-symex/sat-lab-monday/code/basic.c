@@ -146,6 +146,10 @@ int set_literal(int literal, enum decision_type type)
     for (int i = 0; i < l->n_clauses; i++)
     {
         l->clauses[i]->n_zeros++;
+    }
+
+    for (int i = 0; i < l->n_clauses; i++)
+    {
         if (l->clauses[i]->n_zeros == l->clauses[i]->n_literals)
         {
             return 0;
@@ -212,6 +216,11 @@ int decide()
     // conflict, otherwise it should have been BCP'd.
     assert(ASSIGNMENT[v] == UNASSIGNED);
     assert(set_literal(-v, TRIED_ONE_WAY));
+    // if (!set_literal(-v, TRIED_ONE_WAY))
+    // {
+
+    // xprintf("Set_literal (TRIED_ONE_WAY) in decide() fails for %d\n", -v);
+    // }
 
     // Log this decision for xcheck.
     xprintf("Decide: %d\n", -v);
@@ -247,7 +256,7 @@ int bcp()
         {
             int literal = clause->literals[j];
             int val = abs(literal);
-            if (ASSIGNMENT[val] == TRUE)
+            if (ASSIGNMENT[val] == literal > 0)
             {
                 break;
             }
