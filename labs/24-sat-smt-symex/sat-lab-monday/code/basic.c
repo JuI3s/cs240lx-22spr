@@ -125,14 +125,13 @@ int set_literal(int literal, enum decision_type type)
 
     if (ASSIGNMENT[var] != UNASSIGNED)
     {
-        xprintf("literal %d is not UNASSIGNED, state: %d\n", literal, ASSIGNMENT[var]);
+        // xprintf("literal %d is not UNASSIGNED, state: %d\n", literal, ASSIGNMENT[var]);
         assert(0);
     }
 
     // Update the main assignment vector
     ASSIGNMENT[var] = literal > 0;
 
-    xprintf("Setting var %d\n", var);
     assert(ASSIGNMENT[var] != UNASSIGNED);
 
     // And add a new node on the decision stack.
@@ -168,8 +167,6 @@ void unset_latest_assignment()
     unsigned var = DECISION_STACK[--N_DECISION_STACK].var;
     int literal = ASSIGNMENT[var] ? var : -var;
 
-    xprintf("Unset literal %d\n", literal);
-
     // Update the partial assignment
     ASSIGNMENT[var] = UNASSIGNED;
 
@@ -194,7 +191,6 @@ int decide()
 {
     // Iterate over variables until we find an unassigned one, placing it in v
     // (or return 0 if none is found).
-    xprintf("Decide\n");
     int v;
     int idx = 1;
 
@@ -211,16 +207,10 @@ int decide()
         idx++;
     }
 
-    xprintf("Setting literal %d to TRIED_ONE_WAY\n", -v);
     // Otherwise, try setting it false. Note this should never cause a
     // conflict, otherwise it should have been BCP'd.
     assert(ASSIGNMENT[v] == UNASSIGNED);
     assert(set_literal(-v, TRIED_ONE_WAY));
-    // if (!set_literal(-v, TRIED_ONE_WAY))
-    // {
-
-    // xprintf("Set_literal (TRIED_ONE_WAY) in decide() fails for %d\n", -v);
-    // }
 
     // Log this decision for xcheck.
     xprintf("Decide: %d\n", -v);
@@ -236,7 +226,6 @@ int decide()
 // conflict is produce21d (in which case it returns false)."
 int bcp()
 {
-    xprintf("BCP\n");
     int any_change = 0;
     for (size_t i = 0; i < N_CLAUSES; i++)
     {
@@ -262,7 +251,6 @@ int bcp()
             }
             if (ASSIGNMENT[val] == UNASSIGNED)
             {
-                xprintf("BCP set val %d\n", val);
 
                 if (!set_literal(literal, IMPLIED))
                 {
@@ -313,7 +301,6 @@ int resolveConflict()
 
     int new_value = !ASSIGNMENT[var];
     unset_latest_assignment();
-    // xprintf("Setting literal %d in resolveConflict\n", new_value ? var : -var);
     return set_literal(new_value ? var : -var, TRIED_BOTH_WAYS);
 
     // return 1;
