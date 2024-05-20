@@ -98,10 +98,12 @@ int new_bv(int width)
     struct bv bit_vector = {.bits = malloc(width * sizeof(int)), .n_bits = width};
     APPEND_GLOBAL(BVS) = bit_vector;
 
-    int ret = NEXT_SAT_VAR;
-    NEXT_SAT_VAR += width;
+    for (int i = 0; i < width; i++)
+    {
+        bit_vector.bits[i] = NEXT_SAT_VAR++;
+    }
 
-    return ret;
+    return N_BVS - 1;
 }
 
 int const_bv(int64_t value, int width)
@@ -111,16 +113,16 @@ int const_bv(int64_t value, int width)
     // assert(!"Implement me!");
     struct bv bit_vector = {.bits = malloc(width * sizeof(int)), .n_bits = width};
     APPEND_GLOBAL(BVS) = bit_vector;
-    int ret = NEXT_SAT_VAR;
 
     for (int i = 0; i < width; i++)
     {
         int var = NEXT_SAT_VAR++;
         int literal = (value >> i) & 1 ? var : -var;
+        bit_vector.bits[i] = var;
         clause(literal);
     }
 
-    return ret;
+    return N_BVS - 1;
 }
 
 int bv_eq(int bv_1, int bv_2)
@@ -128,12 +130,40 @@ int bv_eq(int bv_1, int bv_2)
     int width = BVS[bv_1].n_bits;
     assert(width == BVS[bv_2].n_bits);
 
+    struct bv bvs_1 = BVS[bv_1];
+    struct bv bvs_2 = BVS[bv_2];
+
     // This one is a doozy: add a fresh SAT variable and enough SAT clauses to
     // assert that this variable is true iff all the bits of bv_1 and bv_2 are
     // equal. I suggest using as many of intermediate/temp SAT variables as you
     // need; generally, BCP does a great job at handling those so they're more
     // or less "free" (at least, for our purposes rn!).
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+
+    int ret = NEXT_SAT_VAR + width;
+
+    for (int i = 0; i < width; i++)
+    {
+        int cst_var = NEXT_SAT_VAR + i;
+        clause_arr((int[]){-cst_var, -bvs_1.bits[i], bvs_2.bits[i], 0});
+        clause_arr((int[]){-cst_var, bvs_1.bits[i], -bvs_2.bits[i], 0});
+        clause_arr((int[]){cst_var, bvs_1.bits[i], bvs_2.bits[i], 0});
+        clause_arr((int[]){cst_var, -bvs_1.bits[i], -bvs_2.bits[i], 0});
+        clause_arr((int[]){-ret, cst_var, 0});
+    }
+
+    int *cl = malloc(width + 2);
+    for (int i = 0; i < width; i++)
+    {
+        int cst_var = NEXT_SAT_VAR++;
+        cl[i] = -cst_var;
+    }
+    cl[width] = ret;
+    cl[width + 1] = 0;
+
+    clause_arr(cl);
+
+    return width;
 }
 
 int bv_add(int bv_1, int bv_2)
