@@ -7,19 +7,22 @@
 #include "smt.h"
 
 // Keep track of clauses to be sent to the SAT solver
-struct clause {
+struct clause
+{
     int *literals, n_literals;
 };
 static struct clause *CLAUSES = NULL;
 static int N_CLAUSES = 0;
 
-void clause_arr(int *literals) {
+void clause_arr(int *literals)
+{
     int i = N_CLAUSES;
     APPEND_GLOBAL(CLAUSES) = (struct clause){
         .literals = NULL,
         .n_literals = 0,
     };
-    for (; *literals; literals++) {
+    for (; *literals; literals++)
+    {
         APPEND_FIELD(CLAUSES[i], literals) = *literals;
     }
 }
@@ -27,11 +30,13 @@ void clause_arr(int *literals) {
 // Keep track of arrays in a tree structure. (store a k v) creates a new array
 // whose parent is a, bv_store_key is k, and bv_store_value is v. Whenever a
 // get is done on the array, a corresponding bv_lookup is appended to its list.
-struct bv_lookup {
+struct bv_lookup
+{
     int bv_key, bv_value;
 };
 
-struct array {
+struct array
+{
     int array_parent;
 
     int bv_store_key, bv_store_value;
@@ -43,7 +48,8 @@ static struct array *ARRAYS = NULL;
 static int N_ARRAYS = 0;
 
 // Keep track of bitvectors
-struct bv {
+struct bv
+{
     int *bits;
     int n_bits;
 };
@@ -53,39 +59,72 @@ static int N_BVS = 0;
 // You can get a fresh SAT variable like NEXT_SAT_VAR++
 static int NEXT_SAT_VAR = 1;
 
-int new_array() {
+int new_array()
+{
     // Create a new array. It has no parent (-1) and no lookups yet (NULL, 0).
     // Returns its index in the ARRAYS vector.
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+    APPEND_GLOBAL(ARRAYS) = (struct array){
+        .array_parent = -1,
+        .bv_store_key = 0,
+        .bv_store_value = 0,
+        .bv_lookups = NULL,
+        .n_bv_lookups = 0,
+    };
+    return N_ARRAYS - 1;
 }
 
-int array_store(int old_array, int bv_key, int bv_value) {
+int array_store(int old_array, int bv_key, int bv_value)
+{
     // Construct a new array that is the same as old_array except bv_key is
     // updated to bv_value. This should look like new_array() except you set
     // array_parent, bv_store_key, bv_store_value correctly.
     assert(!"Implement me!");
 }
 
-int array_get(int array, int bv_key, int out_width) {
+int array_get(int array, int bv_key, int out_width)
+{
     // Create a new bitvector and (on the corresponding array) record this
     // key/value pair lookup.
     assert(!"Implement me!");
 }
 
-int new_bv(int width) {
+int new_bv(int width)
+{
     // Create a fresh bitvector of the given width. Note here you need to
     // append to the BVS vector as well as initialize all its bits to fresh SAT
     // variables.
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+    struct bv bit_vector = {.bits = malloc(width * sizeof(int)), .n_bits = width};
+    APPEND_GLOBAL(BVS) = bit_vector;
+
+    int ret = NEXT_SAT_VAR;
+    NEXT_SAT_VAR += width;
+
+    return ret;
 }
 
-int const_bv(int64_t value, int width) {
+int const_bv(int64_t value, int width)
+{
     // Like new_bv, except also add clauses asserting its bits are the same as
     // those of @value. Please do little-endian; bits[0] should be value & 1.
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+    struct bv bit_vector = {.bits = malloc(width * sizeof(int)), .n_bits = width};
+    APPEND_GLOBAL(BVS) = bit_vector;
+    int ret = NEXT_SAT_VAR;
+
+    for (int i = 0; i < width; i++)
+    {
+        int var = NEXT_SAT_VAR++;
+        int literal = (value >> i) & 1 ? var : -var;
+        clause(literal);
+    }
+
+    return ret;
 }
 
-int bv_eq(int bv_1, int bv_2) {
+int bv_eq(int bv_1, int bv_2)
+{
     int width = BVS[bv_1].n_bits;
     assert(width == BVS[bv_2].n_bits);
 
@@ -97,7 +136,8 @@ int bv_eq(int bv_1, int bv_2) {
     assert(!"Implement me!");
 }
 
-int bv_add(int bv_1, int bv_2) {
+int bv_add(int bv_1, int bv_2)
+{
     int width = BVS[bv_1].n_bits;
     assert(width == BVS[bv_2].n_bits);
 
@@ -110,8 +150,10 @@ int bv_add(int bv_1, int bv_2) {
 }
 
 static void array_axioms(struct array array, int compare_up_to,
-                         struct bv_lookup bv_lookup, int already_handled) {
-    if (array.array_parent >= 0) {
+                         struct bv_lookup bv_lookup, int already_handled)
+{
+    if (array.array_parent >= 0)
+    {
         // This array is of the form (store parent k v), where k and v are
         // array.bv_store_*. Add clauses here of the form:
         // ((k == lookup.key) ^ !already_handled) => (store_val == bv_val)
@@ -131,7 +173,8 @@ static void array_axioms(struct array array, int compare_up_to,
 
     // If we haven't found a set yet, compare lookup[key] to all prior lookups
     // on the array. If keys eq, vals should be eq too.
-    for (int i = 0; i < compare_up_to; i++) {
+    for (int i = 0; i < compare_up_to; i++)
+    {
         struct bv_lookup sub_lookup = array.bv_lookups[i];
         // We want:
         // !already_handled ^ (sub_lookup.key == bv_lookup.key)
@@ -141,7 +184,8 @@ static void array_axioms(struct array array, int compare_up_to,
 
     // If we haven't found a set yet, go back through parents and repeat this
     // reasoning.
-    if (array.array_parent >= 0) {
+    if (array.array_parent >= 0)
+    {
         array_axioms(ARRAYS[array.array_parent],
                      ARRAYS[array.array_parent].n_bv_lookups,
                      bv_lookup, already_handled);
@@ -149,7 +193,8 @@ static void array_axioms(struct array array, int compare_up_to,
 }
 
 int *SAT_SOLUTION = NULL;
-int solve() {
+int solve()
+{
     assert(!SAT_SOLUTION);
     char constraint_path[256] = "";
     sprintf(constraint_path, "temp_files/constraints.%d.dimacs", getpid());
@@ -161,14 +206,17 @@ int solve() {
 
     // Go through array stores & lookups and set up the N^2 bv_eq implications
     // implied
-    for (int i = 0; i < N_ARRAYS; i++) {
-        for (int j = 0; j < ARRAYS[i].n_bv_lookups; j++) {
+    for (int i = 0; i < N_ARRAYS; i++)
+    {
+        for (int j = 0; j < ARRAYS[i].n_bv_lookups; j++)
+        {
             array_axioms(ARRAYS[i], j, ARRAYS[i].bv_lookups[j], zero);
         }
     }
 
     // Print the clauses and some info about the variable interpretations
-    for (int i = 0; i < N_BVS; i++) {
+    for (int i = 0; i < N_BVS; i++)
+    {
         fprintf(fout, "c bitvector %d:", i);
         for (int j = 0; j < BVS[i].n_bits; j++)
             fprintf(fout, " %d", BVS[i].bits[j]);
@@ -177,7 +225,15 @@ int solve() {
     fprintf(fout, "p cnf %d %d\n", NEXT_SAT_VAR - 1, N_CLAUSES);
 
     // Iterate through the clauses and print them in DIMACS format.
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+    for (int i = 0; i < N_CLAUSES; i++)
+    {
+        for (int j = 0; j < CLAUSES[i].n_literals; j++)
+        {
+            fprintf(fout, "%d ", CLAUSES[i].literals[j]);
+        }
+        fprintf(fout, "0\n");
+    }
 
     fclose(fout);
 
@@ -195,15 +251,21 @@ int solve() {
     FILE *results = fopen(result_path, "r");
     char sat_or_unsat[10] = "NONE";
     assert(fscanf(results, "%s ", sat_or_unsat));
-    if (!strcmp(sat_or_unsat, "UNSAT")) {
+    if (!strcmp(sat_or_unsat, "UNSAT"))
+    {
         fclose(results);
         return 0;
-    } else if (!strcmp(sat_or_unsat, "SAT")) {
+    }
+    else if (!strcmp(sat_or_unsat, "SAT"))
+    {
         SAT_SOLUTION = malloc(NEXT_SAT_VAR * sizeof(SAT_SOLUTION[0]));
         int literal = 0;
-        while (!feof(results) && fscanf(results, " %d ", &literal)) {
-            if (literal < 0)    SAT_SOLUTION[-literal] = 0;
-            else                SAT_SOLUTION[literal] = 1;
+        while (!feof(results) && fscanf(results, " %d ", &literal))
+        {
+            if (literal < 0)
+                SAT_SOLUTION[-literal] = 0;
+            else
+                SAT_SOLUTION[literal] = 1;
         }
         fclose(results);
         return 1;
@@ -211,9 +273,19 @@ int solve() {
     exit(1);
 }
 
-int64_t get_solution(int bv, int as_signed) {
+int64_t get_solution(int bv, int as_signed)
+{
     assert(SAT_SOLUTION);
 
     // Read the bits for @bv from SAT_SOLUTION into an int64_t.
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+
+    int64_t ret = 0;
+    for (int i = 0; i < BVS[bv].n_bits; i++)
+    {
+        ret <<= 1;
+        ret |= BVS[bv].bits[i];
+    }
+
+    return ret;
 }

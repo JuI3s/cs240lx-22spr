@@ -1,14 +1,14 @@
 #pragma once
 #include <stdint.h>
 
-#define APPEND_GLOBAL(NAME) (*({ \
+#define APPEND_GLOBAL(NAME) (*({                          \
     NAME = realloc(NAME, (++N_##NAME) * sizeof(NAME[0])); \
-    NAME + N_##NAME - 1; \
+    NAME + N_##NAME - 1;                                  \
 }))
 
-#define APPEND_FIELD(OBJ, FIELD) (*({ \
+#define APPEND_FIELD(OBJ, FIELD) (*({                                                 \
     (OBJ).FIELD = realloc((OBJ).FIELD, (++(OBJ).n_##FIELD) * sizeof((OBJ).FIELD[0])); \
-    (OBJ).FIELD + ((OBJ).n_##FIELD - 1); \
+    (OBJ).FIELD + ((OBJ).n_##FIELD - 1);                                              \
 }))
 
 // Create a fresh array and return a handle to it
