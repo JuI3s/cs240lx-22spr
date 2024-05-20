@@ -96,12 +96,12 @@ int new_bv(int width)
     // variables.
     // assert(!"Implement me!");
     struct bv bit_vector = {.bits = malloc(width * sizeof(int)), .n_bits = width};
-    APPEND_GLOBAL(BVS) = bit_vector;
 
     for (int i = 0; i < width; i++)
     {
         bit_vector.bits[i] = NEXT_SAT_VAR++;
     }
+    APPEND_GLOBAL(BVS) = bit_vector;
 
     return N_BVS - 1;
 }
@@ -152,18 +152,21 @@ int bv_eq(int bv_1, int bv_2)
         clause_arr((int[]){-ret, cst_var, 0});
     }
 
-    int *cl = malloc(width + 2);
+    int *cl = malloc((width + 2) * sizeof(int));
+
     for (int i = 0; i < width; i++)
     {
         int cst_var = NEXT_SAT_VAR++;
         cl[i] = -cst_var;
     }
+
     cl[width] = ret;
     cl[width + 1] = 0;
 
     clause_arr(cl);
+    NEXT_SAT_VAR++;
 
-    return width;
+    return ret;
 }
 
 int bv_add(int bv_1, int bv_2)
@@ -313,8 +316,7 @@ int64_t get_solution(int bv, int as_signed)
     int64_t ret = 0;
     for (int i = 0; i < BVS[bv].n_bits; i++)
     {
-        ret <<= 1;
-        ret |= BVS[bv].bits[i];
+        ret |= (SAT_SOLUTION[BVS[bv].bits[i]] << i);
     }
 
     return ret;
