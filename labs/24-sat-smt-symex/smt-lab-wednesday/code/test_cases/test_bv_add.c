@@ -4,7 +4,8 @@
 
 // Test all bitvector functions, including add. Uses the SMT solver to compute
 // subtraction, i.e., solve for x such that 11 + x = 23.
-int main() {
+int main()
+{
     printf("Testing bitvectors with addition...\n");
 
     int bv_const_11 = const_bv(11, 10),
@@ -22,7 +23,7 @@ int main() {
     // And 11 = 11, 23 = 23, and x = 12
     assert(get_solution(bv_const_11, 0) == 11);
     assert(get_solution(bv_const_23, 0) == 23);
-    assert(get_solution(bv_x, 0)        == 12);
+    assert(get_solution(bv_x, 0) == 12);
 
     printf("Passed!\n");
     return 0;

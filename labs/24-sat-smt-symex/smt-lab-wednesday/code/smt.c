@@ -169,17 +169,62 @@ int bv_eq(int bv_1, int bv_2)
     return ret;
 }
 
+inline static is_positive(int x)
+{
+    return x > 0 ? 1 : 0;
+}
+
+inline static void triple_and_impl(int x, int y, int c, int z)
+{
+    // (x and y and c) => z
+    clause_arr((int[]){-x, -y, -c, z, 0});
+}
+
+inline static void carry_adder(int x, int y, int c0, int z, int c1)
+{
+
+    triple_and_impl(x, y, c0, (is_positive(x) + is_positive(y) + is_positive(c0)) % 2 ? z : -z);
+    triple_and_impl(x, y, c0, (is_positive(x) + is_positive(y) + is_positive(c0)) / 2 ? c1 : -c1);
+}
+
 int bv_add(int bv_1, int bv_2)
 {
     int width = BVS[bv_1].n_bits;
     assert(width == BVS[bv_2].n_bits);
 
     int out = new_bv(width);
+    int carry = new_bv(width + 1);
+
+    struct bv bvs_1 = BVS[bv_1];
+    struct bv bvs_2 = BVS[bv_2];
+    struct bv bvs_out = BVS[out];
+    struct bv bvs_carry = BVS[carry];
+
+    // Set the first carry bit to zero
+    clause(-bvs_carry.bits[0]);
 
     // This one is similarly big; basically you want to do a ripple-carry
     // adder to assign the bits of @out based on the bits of @bv_1, @bv_2. I
     // would recommend just trying to encode it as a truth table.
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+    for (int i = 0; i < width; i++)
+    {
+        for (int j = 0; j < 2; j++)
+        {
+            for (int k = 0; k < 2; k++)
+            {
+                for (int l = 0; l < 2; l++)
+                {
+                    carry_adder((j > 0 ? 1 : -1) * bvs_1.bits[i],
+                                (k > 0 ? 1 : -1) * bvs_2.bits[i],
+                                (l > 0 ? 1 : -1) * bvs_carry.bits[i],
+                                bvs_out.bits[i],
+                                bvs_carry.bits[i + 1]);
+                }
+            }
+        }
+    }
+    return out;
 }
 
 static void array_axioms(struct array array, int compare_up_to,
