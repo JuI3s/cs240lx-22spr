@@ -66,8 +66,8 @@ int new_array()
     // assert(!"Implement me!");
     APPEND_GLOBAL(ARRAYS) = (struct array){
         .array_parent = -1,
-        .bv_store_key = 0,
-        .bv_store_value = 0,
+        .bv_store_key = -1,
+        .bv_store_value = -1,
         .bv_lookups = NULL,
         .n_bv_lookups = 0,
     };
@@ -79,14 +79,27 @@ int array_store(int old_array, int bv_key, int bv_value)
     // Construct a new array that is the same as old_array except bv_key is
     // updated to bv_value. This should look like new_array() except you set
     // array_parent, bv_store_key, bv_store_value correctly.
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+    APPEND_GLOBAL(ARRAYS) = (struct array){
+        .array_parent = old_array,
+        .bv_store_key = bv_key,
+        .bv_store_value = bv_value,
+        .bv_lookups = NULL,
+        .n_bv_lookups = 0,
+    };
+    return N_ARRAYS - 1;
 }
 
 int array_get(int array, int bv_key, int out_width)
 {
     // Create a new bitvector and (on the corresponding array) record this
     // key/value pair lookup.
-    assert(!"Implement me!");
+    // assert(!"Implement me!");
+    int bv = new_bv(out_width);
+    struct bv_lookup lup = {.bv_key = bv_key, .bv_value = bv};
+    APPEND_FIELD(ARRAYS[array], bv_lookups) = lup;
+
+    return bv;
 }
 
 int new_bv(int width)
@@ -230,24 +243,38 @@ int bv_add(int bv_1, int bv_2)
 static void array_axioms(struct array array, int compare_up_to,
                          struct bv_lookup bv_lookup, int already_handled)
 {
+
     if (array.array_parent >= 0)
     {
         // This array is of the form (store parent k v), where k and v are
         // array.bv_store_*. Add clauses here of the form:
         // ((k == lookup.key) ^ !already_handled) => (store_val == bv_val)
         // Hint: use bv_eq!
-        assert(!"Implement me!");
+        // assert(!"Implement me!");
+        int k_eq_lookup = bv_eq(array.bv_store_key, bv_lookup.bv_key);
+        int val_eq = bv_eq(array.bv_store_value, bv_lookup.bv_value);
+        clause_arr((int[]){-k_eq_lookup, already_handled, val_eq, 0});
 
         // Now we need to record if that worked or not. If this is picking up
         // that store, then we don't need the value to match with any prior
         // values (because they were overridden). So make a fresh SAT variable
         // new_already_handled and assign it:
         // (already_handled or (k == lookup.key)) <=> new_already_handled
-        assert(!"Implement me!");
+        // assert(!"Implement me!");
+        // int new_already_handled = new_bv(BVS[already_handled].n_bits);
+        int new_already_handled = NEXT_SAT_VAR++;
+
+        clause_arr((int[]){-already_handled, new_already_handled, 0});
+        clause_arr((int[]){-k_eq_lookup, new_already_handled, 0});
+
+        clause_arr((int[]){-new_already_handled, already_handled, k_eq_lookup, 0});
 
         // Then update already_handled = new_already_handled
-        assert(!"Implement me!");
+        // assert(!"Implement me!");
+        already_handled = new_already_handled;
     }
+
+    // return;
 
     // If we haven't found a set yet, compare lookup[key] to all prior lookups
     // on the array. If keys eq, vals should be eq too.
@@ -257,7 +284,11 @@ static void array_axioms(struct array array, int compare_up_to,
         // We want:
         // !already_handled ^ (sub_lookup.key == bv_lookup.key)
         // => sub_lookup.value == bv_lookup.value
-        assert(!"Implement me!");
+
+        // assert(!"Implement me!");
+        int key_eq = bv_eq(sub_lookup.bv_key, bv_lookup.bv_key);
+        int val_eq = bv_eq(sub_lookup.bv_value, bv_lookup.bv_value);
+        clause_arr((int[]){already_handled, -key_eq, val_eq});
     }
 
     // If we haven't found a set yet, go back through parents and repeat this
